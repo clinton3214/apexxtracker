@@ -23,24 +23,24 @@ export default function GoalCard({ goal, stats, onSelectGoal, onLogClick, onDele
 
   return (
     <div className="glass-card p-4 flex flex-col justify-between relative group/card">
-      <div className="absolute top-3 right-3 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 flex items-center gap-1">
-        {/* Complete icon — hidden until hover */}
+      <div className="absolute top-3 right-3 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 transition-opacity duration-200 flex items-center gap-1">
+        {/* Complete icon */}
         {onComplete && goal.status !== 'completed' && (
           <button
             onClick={(e) => { e.stopPropagation(); onComplete(goal.id); }}
             title="Mark as Complete"
-            className="text-zinc-600 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md p-1 transition-colors"
+            className="text-zinc-400 sm:text-zinc-600 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md p-1 transition-colors"
           >
             <CheckIcon />
           </button>
         )}
         
-        {/* Bin icon — hidden until hover */}
+        {/* Bin icon */}
         {onDelete && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(goal.id); }}
             title="Delete goal"
-            className="text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-md p-1 transition-colors"
+            className="text-zinc-400 sm:text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-md p-1 transition-colors"
           >
             <BinIcon />
           </button>

@@ -228,12 +228,18 @@ export default function App() {
               Apexx tracker <span className="text-zinc-500 font-normal text-sm hidden sm:inline">/ PACE ENGINE</span>
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* History — clock icon on mobile, text on desktop */}
             <button 
               onClick={() => setCurrentView('history')}
-              className="text-xs font-mono text-zinc-500 hover:text-amber-400 transition-colors mr-2 hidden sm:block"
+              className="text-zinc-500 hover:text-amber-400 transition-colors flex items-center gap-1"
+              title="History"
             >
-              HISTORY
+              {/* Clock icon — always visible */}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
+              </svg>
+              <span className="text-xs font-mono hidden sm:inline">HISTORY</span>
             </button>
             <span className="text-xs font-mono text-zinc-500 hidden sm:inline bg-surface py-1 px-2 rounded-lg border border-surface-border">SIM: {todayStr}</span>
             {currentView === 'today' && !isLoggingPace && (

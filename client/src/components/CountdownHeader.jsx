@@ -16,13 +16,13 @@ const CheckIcon = () => (
 export default function CountdownHeader({ goal, stats, onClickGoal, onDelete, onComplete }) {
   return (
     <div className="glass-card group/card cursor-pointer hover:border-surface-borderStrong transition-all p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 relative">
-      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-10">
+      <div className="absolute top-2.5 right-2.5 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100 transition-opacity duration-200 flex items-center gap-1 z-10">
         {/* Complete icon */}
         {onComplete && goal.status !== 'completed' && (
           <button
             onClick={(e) => { e.stopPropagation(); onComplete(goal.id); }}
             title="Mark as Complete"
-            className="text-zinc-600 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md p-1 transition-colors"
+            className="text-zinc-400 sm:text-zinc-600 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-md p-1 transition-colors"
           >
             <CheckIcon />
           </button>
@@ -33,7 +33,7 @@ export default function CountdownHeader({ goal, stats, onClickGoal, onDelete, on
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(goal.id); }}
             title="Delete goal"
-            className="text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-md p-1 transition-colors"
+            className="text-zinc-400 sm:text-zinc-600 hover:text-rose-400 hover:bg-rose-500/10 rounded-md p-1 transition-colors"
           >
             <BinIcon />
           </button>
