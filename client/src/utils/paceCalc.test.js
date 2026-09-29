@@ -17,8 +17,15 @@ describe('calculatePace', () => {
     expect(stats.totalMinutesLogged).toBe(0);
     expect(stats.averageDailyPace).toBe(0);
     expect(stats.requiredDailyPace).toBe(Math.round(1000 / 21)); // ~48
-    expect(stats.paceStatus).toBe('nodata');
-    expect(stats.paceLabel).toBe('Not enough data yet');
+    expect(stats.paceStatus).toBe('behind');
+    expect(stats.paceLabel).toBe('Behind (No logs)');
+  });
+
+  it('labels as just started when created today and no logs', () => {
+    const stats = calculatePace(baseGoal, [], [], '2025-01-01');
+    expect(stats.daysElapsed).toBe(0);
+    expect(stats.paceStatus).toBe('onTrack');
+    expect(stats.paceLabel).toBe('Just Started');
   });
 
   it('calculates properly past deadline', () => {

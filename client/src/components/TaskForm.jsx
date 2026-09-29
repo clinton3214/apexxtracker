@@ -22,13 +22,13 @@ const LiquidSelect = ({ value, options, onChange, className }) => {
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1.5 w-max min-w-full bg-surface/80 backdrop-blur-2xl border border-white/20 rounded-xl overflow-hidden shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] z-50 animate-in fade-in zoom-in-95 duration-200">
+        <div className="absolute top-full left-0 mt-1.5 w-max min-w-full bg-white/90 backdrop-blur-2xl border border-white rounded-xl overflow-hidden shadow-xl z-[999] animate-in fade-in zoom-in-95 duration-200">
           {options.map(opt => (
             <button
               key={opt.value}
               type="button"
               onClick={() => { onChange(opt.value); setIsOpen(false); }}
-              className={`w-full text-left px-3 py-2 text-xs font-mono transition-colors ${value === opt.value ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-200 hover:bg-white/10'}`}
+              className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors ${value === opt.value ? 'bg-[#7166dc]/10 text-[#7166dc]' : 'text-[#4c5166] hover:bg-[#7166dc]/5'}`}
             >
               {opt.label}
             </button>
@@ -54,6 +54,10 @@ export default function TaskForm({ onSubmit }) {
     if (targetType === 'custom') {
       if (!customDate) return;
       finalTargetDay = customDate;
+    } else if (targetType === 'tomorrow') {
+      const tmrw = new Date();
+      tmrw.setDate(tmrw.getDate() + 1);
+      finalTargetDay = tmrw.toISOString().split('T')[0];
     }
     
     onSubmit({ title, priority, targetDay: finalTargetDay, estimatedMinutes, goalId: null });
@@ -61,18 +65,18 @@ export default function TaskForm({ onSubmit }) {
     setEstimatedMinutes(30);
   };
 
-  const glassInputStyle = "bg-surface/30 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500/50 transition-colors shadow-sm";
-  const glassButtonStyle = "bg-surface/30 hover:bg-surface/50 backdrop-blur-md border border-white/10 rounded-lg px-2 py-1.5 text-xs text-zinc-100 transition-colors shadow-sm";
+  const glassInputStyle = "bg-white/40 border border-white/60 rounded-lg px-2 py-1.5 text-xs text-[#25283b] focus:outline-none focus:border-[#7166dc]/50 transition-colors placeholder:text-[#969caf]";
+  const glassButtonStyle = "bg-white/40 hover:bg-white/60 border border-white/60 rounded-lg px-2 py-1.5 text-xs text-[#25283b] font-bold transition-colors";
 
   return (
-    <form onSubmit={handleSubmit} className="glass-panel p-3 flex flex-wrap gap-2 items-center">
+    <form onSubmit={handleSubmit} className="p-3 flex flex-wrap gap-2 items-center relative z-20 border border-white/70 rounded-[13px] bg-white/20">
       <input
         type="text"
         required
         placeholder="New task..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className={`flex-1 min-w-[200px] text-sm px-3 ${glassInputStyle}`}
+        className={`flex-1 min-w-[150px] sm:min-w-[200px] text-sm px-3 font-bold ${glassInputStyle}`}
       />
       
       <LiquidSelect 
@@ -83,7 +87,7 @@ export default function TaskForm({ onSubmit }) {
           { value: 'medium', label: 'Med' },
           { value: 'low', label: 'Low' }
         ]}
-        className={`${glassButtonStyle} font-mono`}
+        className={glassButtonStyle}
       />
 
       <div className="flex items-center gap-1">
@@ -92,10 +96,10 @@ export default function TaskForm({ onSubmit }) {
           onChange={setTargetType}
           options={[
             { value: 'today', label: 'Today' },
-            { value: 'tomorrow', label: 'Tomorrow' },
+            { value: 'tomorrow', label: 'Tmrw' },
             { value: 'custom', label: 'Custom' }
           ]}
-          className={`${glassButtonStyle} font-mono`}
+          className={glassButtonStyle}
         />
 
         {targetType === 'custom' && (
@@ -105,7 +109,7 @@ export default function TaskForm({ onSubmit }) {
               required
               value={customDate}
               onChange={e => setCustomDate(e.target.value)}
-              className={`${glassInputStyle} font-num w-32`}
+              className={`${glassInputStyle} w-28`}
             />
           </div>
         )}
@@ -118,14 +122,14 @@ export default function TaskForm({ onSubmit }) {
           step="5"
           value={estimatedMinutes}
           onChange={e => setEstimatedMinutes(Number(e.target.value))}
-          className={`${glassInputStyle} font-num w-16`}
+          className={`${glassInputStyle} w-14 font-bold`}
         />
-        <span className="text-[10px] text-zinc-500 font-mono">min</span>
+        <span className="text-[10px] text-[#969caf] font-bold">min</span>
       </div>
 
       <button 
         type="submit"
-        className="ml-auto md:ml-0 bg-amber-500/20 hover:bg-amber-500/30 backdrop-blur-md border border-amber-500/50 text-amber-400 px-4 py-1.5 rounded-lg text-xs font-mono font-bold transition-colors shadow-sm"
+        className="ml-auto md:ml-0 bg-[#7166dc] hover:bg-[#5d51ce] text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-md"
       >
         ADD
       </button>

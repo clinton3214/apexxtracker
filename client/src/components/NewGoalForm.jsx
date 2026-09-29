@@ -29,19 +29,19 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
     }
   };
 
-  const glassInput = "w-full bg-surface/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-amber-500/50 backdrop-blur-md transition-colors shadow-sm";
+  const glassInput = "w-full bg-white/50 border border-white rounded-xl px-4 py-3 text-sm text-[#25283b] font-bold focus:outline-none focus:border-[#7166dc]/60 transition-colors placeholder:text-[#969caf]/70 placeholder:font-normal";
 
   return (
-    <div className="glass-card-strong p-6 mb-8 max-w-2xl mx-auto">
-      <div className="flex justify-between items-center mb-6 border-b border-surface-border/50 pb-4">
-        <h2 className="text-xl font-bold font-mono tracking-tight text-zinc-100">Initialize New Goal</h2>
-        <button onClick={onCancel} className="text-zinc-500 hover:text-zinc-300">✕</button>
+    <div className="glass-card p-6 mb-8 max-w-2xl mx-auto rounded-[26px]">
+      <div className="flex justify-between items-center mb-6 border-b border-white/60 pb-4">
+        <h2 className="text-xl font-bold text-[#25283b]">Initialize New Goal</h2>
+        <button onClick={onCancel} className="text-[#969caf] hover:text-[#25283b] transition-colors">✕</button>
       </div>
 
       <div className="flex gap-2 mb-6">
         <button 
           onClick={() => setGoalType('long_term')}
-          className={`flex-1 py-2 px-4 rounded-lg font-mono text-xs transition-colors border ${goalType === 'long_term' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 backdrop-blur-md' : 'bg-surface/30 border-white/10 text-zinc-400 backdrop-blur-md'}`}
+          className={`flex-1 py-2 px-4 rounded-xl font-bold text-xs transition-colors border ${goalType === 'long_term' ? 'bg-[#7166dc]/10 border-[#7166dc]/40 text-[#7166dc]' : 'bg-white/40 border-white/60 text-[#969caf] hover:bg-white/60'}`}
         >
           Long-term Project
         </button>
@@ -50,15 +50,15 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
             setGoalType('daily');
             setFormData(prev => ({ ...prev, totalPlannedMinutes: 120, deadline: new Date().toISOString().split('T')[0] }));
           }}
-          className={`flex-1 py-2 px-4 rounded-lg font-mono text-xs transition-colors border ${goalType === 'daily' ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 backdrop-blur-md' : 'bg-surface/30 border-white/10 text-zinc-400 backdrop-blur-md'}`}
+          className={`flex-1 py-2 px-4 rounded-xl font-bold text-xs transition-colors border ${goalType === 'daily' ? 'bg-[#7166dc]/10 border-[#7166dc]/40 text-[#7166dc]' : 'bg-white/40 border-white/60 text-[#969caf] hover:bg-white/60'}`}
         >
           Daily Objective
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">Goal Name</label>
+          <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">Goal Name</label>
           <input
             type="text"
             required
@@ -73,7 +73,7 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">Target Deadline</label>
+                <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">Target Deadline</label>
                 <input
                   type="date"
                   required
@@ -83,7 +83,7 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
                 />
               </div>
               <div>
-                <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">Total Est. Minutes</label>
+                <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">Total Est. Minutes</label>
                 <input
                   type="number"
                   required
@@ -97,7 +97,7 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
             </div>
 
             <div>
-              <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">Daily Capacity Allocation (min/day)</label>
+              <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">Daily Capacity Allocation (min/day)</label>
               <input
                 type="number"
                 required
@@ -107,13 +107,13 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
                 onChange={e => setFormData({ ...formData, currentDailyCapacityMin: Number(e.target.value) })}
                 className={`${glassInput} font-num`}
               />
-              <p className="text-[10px] text-zinc-500 mt-1.5 font-mono">How many minutes per day are you realistically willing to dedicate to this goal today?</p>
+              <p className="text-[10px] text-[#969caf] mt-1.5 font-bold">How many minutes per day are you realistically willing to dedicate to this goal today?</p>
             </div>
           </>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">Target Date</label>
+              <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">Target Date</label>
               <input
                 type="date"
                 required
@@ -124,19 +124,19 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
             </div>
             
             <div>
-              <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">Time Required</label>
-              <div className="flex bg-surface/30 backdrop-blur-md border border-white/10 rounded-xl p-1 mb-2">
+              <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">Time Required</label>
+              <div className="flex bg-white/40 border border-white rounded-xl p-1 mb-2">
                 <button
                   type="button"
                   onClick={() => setDailyTimeType('all_day')}
-                  className={`flex-1 py-1.5 text-xs font-mono rounded-lg transition-colors ${dailyTimeType === 'all_day' ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-400 hover:text-zinc-200'}`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${dailyTimeType === 'all_day' ? 'bg-[#7166dc]/15 text-[#7166dc]' : 'text-[#969caf] hover:text-[#4c5166]'}`}
                 >
                   All Day
                 </button>
                 <button
                   type="button"
                   onClick={() => setDailyTimeType('custom')}
-                  className={`flex-1 py-1.5 text-xs font-mono rounded-lg transition-colors ${dailyTimeType === 'custom' ? 'bg-amber-500/20 text-amber-400' : 'text-zinc-400 hover:text-zinc-200'}`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors ${dailyTimeType === 'custom' ? 'bg-[#7166dc]/15 text-[#7166dc]' : 'text-[#969caf] hover:text-[#4c5166]'}`}
                 >
                   Custom
                 </button>
@@ -159,9 +159,9 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
           </div>
         )}
 
-        <div className="flex justify-end pt-4 mt-6 border-t border-surface-border/50">
-          <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl text-zinc-400 hover:text-zinc-200 mr-2 font-mono">Cancel</button>
-          <button type="submit" className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-6 py-2.5 rounded-xl transition-colors font-mono shadow-lg shadow-amber-500/20">
+        <div className="flex justify-end pt-4 mt-6 border-t border-white/60">
+          <button type="button" onClick={onCancel} className="px-6 py-2.5 rounded-xl text-[#969caf] hover:text-[#4c5166] mr-2 font-bold">Cancel</button>
+          <button type="submit" className="bg-[#7166dc] hover:bg-[#5d51ce] text-white font-bold px-6 py-2.5 rounded-xl transition-colors shadow-lg shadow-[#7166dc]/30">
             CREATE GOAL
           </button>
         </div>
@@ -169,4 +169,3 @@ export default function NewGoalForm({ onSubmit, onCancel }) {
     </div>
   );
 }
-

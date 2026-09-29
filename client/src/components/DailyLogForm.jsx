@@ -22,19 +22,20 @@ export default function DailyLogForm({ goals, onSubmit, onCancel }) {
   };
 
   return (
-    <div className="glass-card-strong p-6 mb-8 max-w-2xl mx-auto border-amber-500/30">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold font-mono tracking-tight text-amber-400">Log Daily Pace - {todayStr}</h2>
-        <button onClick={onCancel} className="text-zinc-500 hover:text-zinc-300">✕</button>
+    <div className="glass-card p-6 max-w-2xl mx-auto rounded-3xl" style={{ borderTop: '4px solid #7166dc' }}>
+      <div className="flex justify-between items-center mb-6 border-b border-white/50 pb-4">
+        <h2 className="text-xl font-bold tracking-tight text-[#25283b]">Log Daily Pace <span className="text-sm font-normal text-[#969caf] ml-2 font-mono">{todayStr}</span></h2>
+        <button onClick={onCancel} className="text-[#969caf] hover:text-[#25283b] transition-colors">✕</button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-3">
           {goals.map(g => {
             const entry = logEntries.find(e => e.goalId === g.id);
+            const title = g.title || g.name;
             return (
-              <div key={g.id} className="flex justify-between items-center p-3 rounded-xl bg-surface/50 border border-surface-border/50 backdrop-blur-sm">
-                <label className="text-sm font-medium text-zinc-200">{g.name}</label>
+              <div key={g.id} className="flex justify-between items-center p-3 rounded-2xl bg-white/40 border border-white/60">
+                <label className="text-sm font-bold text-[#4c5166]">{title}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -42,9 +43,9 @@ export default function DailyLogForm({ goals, onSubmit, onCancel }) {
                     step="5"
                     value={entry.minutes}
                     onChange={(e) => updateMinutes(g.id, e.target.value)}
-                    className="w-20 px-3 py-1.5 font-num bg-canvas border border-surface-borderStrong rounded-lg focus:outline-none focus:border-amber-500 text-zinc-100"
+                    className="w-20 px-3 py-1.5 font-bold bg-white/60 border border-white rounded-lg focus:outline-none focus:border-[#7166dc] text-[#25283b]"
                   />
-                  <span className="text-xs text-zinc-400 font-mono">min</span>
+                  <span className="text-xs text-[#969caf] font-bold uppercase">min</span>
                 </div>
               </div>
             );
@@ -52,18 +53,18 @@ export default function DailyLogForm({ goals, onSubmit, onCancel }) {
         </div>
 
         <div>
-          <label className="block text-xs uppercase tracking-widest text-zinc-400 font-mono mb-2">End of Day Note (Optional)</label>
+          <label className="block text-xs uppercase tracking-widest text-[#969caf] font-bold mb-2">End of Day Note (Optional)</label>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="w-full bg-canvas/80 border border-surface-borderStrong rounded-xl px-4 py-3 text-sm text-zinc-100 focus:outline-none focus:border-amber-500 backdrop-blur-sm"
+            className="w-full bg-white/40 border border-white/60 rounded-xl px-4 py-3 text-sm text-[#25283b] focus:outline-none focus:border-[#7166dc] placeholder:text-[#969caf]/70"
             rows={2}
             placeholder="What blocked you? What accelerated you?"
           />
         </div>
 
         <div className="flex justify-end pt-2">
-          <button type="submit" className="bg-amber-500 hover:bg-amber-400 text-amber-950 font-bold px-6 py-2.5 rounded-xl transition-colors font-mono tracking-wide shadow-lg shadow-amber-500/20">
+          <button type="submit" className="bg-[#7166dc] hover:bg-[#5d51ce] text-white font-bold px-6 py-2.5 rounded-xl transition-colors tracking-wide shadow-lg shadow-[#7166dc]/30">
             COMMIT LOG
           </button>
         </div>

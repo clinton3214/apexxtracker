@@ -2,17 +2,78 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as api from './api';
 import { calculatePace } from './utils/paceCalc';
 import CountdownHeader from './components/CountdownHeader';
-import GoalCard from './components/GoalCard';
 import TaskRow from './components/TaskRow';
 import TaskForm from './components/TaskForm';
 import DailyLogForm from './components/DailyLogForm';
 import NewGoalForm from './components/NewGoalForm';
 
+function MobileNav({ currentView, setCurrentView }) {
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (expanded) {
+      const timer = setTimeout(() => {
+        setExpanded(false);
+      }, 60000); // 1 minute timeout
+      return () => clearTimeout(timer);
+    }
+  }, [expanded]);
+
+  return (
+    <aside className={`side-rail glass-card ${expanded ? 'expanded' : ''}`} onClick={() => !expanded && setExpanded(true)}>
+      <div className="logo" onClick={(e) => { if (expanded) { e.stopPropagation(); setExpanded(false); } }}>A<span /></div>
+      <nav>
+        <button className={currentView === 'today' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('today'); setExpanded(false); }} aria-label="Overview">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+        </button>
+        <button className={currentView === 'new_goal' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('new_goal'); setExpanded(false); }} aria-label="New Goal">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button className={currentView === 'history' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('history'); setExpanded(false); }} aria-label="History">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </button>
+      </nav>
+      <button className="rail-bottom" aria-label="User">U</button>
+    </aside>
+  );
+}
+
+function calculateStreak(logs, todayStr) {
+  if (!logs || logs.length === 0) return 0;
+  const uniqueDates = [...new Set(logs.map(l => l.date))].sort((a,b) => b.localeCompare(a));
+  let streak = 0;
+  let current = new Date(todayStr);
+  
+  if (uniqueDates[0] === todayStr || uniqueDates[0] === new Date(current.getTime() - 86400000).toISOString().split('T')[0]) {
+      for (let i = 0; i < uniqueDates.length; i++) {
+          const expected = new Date(current.getTime() - (i * 86400000)).toISOString().split('T')[0];
+          if (uniqueDates.includes(expected)) {
+             streak++;
+          } else if (i === 0 && uniqueDates.includes(new Date(current.getTime() - 86400000).toISOString().split('T')[0])) {
+             continue;
+          } else {
+             break;
+          }
+      }
+  }
+  return streak;
+}
+
+function getLast7DaysLogs(logs, todayStr) {
+  const result = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(new Date(todayStr).getTime() - (i * 86400000)).toISOString().split('T')[0];
+    const sum = logs.filter(l => l.date === d).reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0);
+    result.push(sum);
+  }
+  return result;
+}
+
 export default function App() {
   const [goals, setGoals] = useState([]);
   const [logs, setLogs] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [currentView, setCurrentView] = useState('today'); // 'today' | 'goal_detail' | 'new_goal'
+  const [currentView, setCurrentView] = useState('today'); // 'today' | 'goal_detail' | 'new_goal' | 'history'
   const [selectedGoalId, setSelectedGoalId] = useState(null);
   const [isLoggingPace, setIsLoggingPace] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -53,10 +114,10 @@ export default function App() {
     const newGoal = {
       id: Date.now().toString(),
       createdAt: new Date().toISOString(),
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: todayStr,
       ...data
     };
-    setGoals(prev => [...prev, newGoal]); // Optimistic
+    setGoals(prev => [...prev, newGoal]);
     setCurrentView('today');
     try {
       const created = await api.createGoal(newGoal);
@@ -70,7 +131,7 @@ export default function App() {
   const handleDeleteGoal = async (goalId) => {
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
-    setGoals(prev => prev.filter(g => g.id !== goalId)); // Optimistic
+    setGoals(prev => prev.filter(g => g.id !== goalId));
     if (selectedGoalId === goalId) setCurrentView('today');
     try {
       await api.deleteGoal(goalId);
@@ -87,7 +148,7 @@ export default function App() {
       status: 'todo',
       ...data
     };
-    setTasks(prev => [...prev, newTask]); // Optimistic
+    setTasks(prev => [...prev, newTask]);
     try {
       const created = await api.createTask(newTask);
       setTasks(prev => prev.map(t => t.id === newTask.id ? created : t));
@@ -101,7 +162,7 @@ export default function App() {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
     const newStatus = task.status === 'done' ? 'todo' : 'done';
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t)); // Optimistic
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
     try {
       const updated = await api.updateTask(taskId, { status: newStatus });
       setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
@@ -114,7 +175,7 @@ export default function App() {
   const handleUpdateTaskSpent = async (taskId, spentMinutes) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, spentMinutes } : t)); // Optimistic
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, spentMinutes } : t));
     try {
       const updated = await api.updateTask(taskId, { spentMinutes });
       setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
@@ -127,7 +188,7 @@ export default function App() {
   const handlePullToToday = async (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, targetDay: 'today' } : t)); // Optimistic
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, targetDay: 'today' } : t));
     try {
       const updated = await api.updateTask(taskId, { targetDay: 'today' });
       setTasks(prev => prev.map(t => t.id === taskId ? updated : t));
@@ -140,7 +201,7 @@ export default function App() {
   const handleDeleteTask = async (taskId) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
-    setTasks(prev => prev.filter(t => t.id !== taskId)); // Optimistic
+    setTasks(prev => prev.filter(t => t.id !== taskId));
     try {
       await api.deleteTask(taskId);
     } catch (e) {
@@ -153,7 +214,7 @@ export default function App() {
     const goal = goals.find(g => g.id === goalId);
     if (!goal) return;
     const completedAt = new Date().toISOString();
-    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, status: 'completed', completedAt } : g)); // Optimistic
+    setGoals(prev => prev.map(g => g.id === goalId ? { ...g, status: 'completed', completedAt } : g));
     if (selectedGoalId === goalId) setCurrentView('today');
     try {
       const updated = await api.updateGoal(goalId, { status: 'completed', completedAt });
@@ -171,7 +232,7 @@ export default function App() {
       date,
       note
     }));
-    setLogs(prev => [...prev, ...entriesWithIds]); // Optimistic
+    setLogs(prev => [...prev, ...entriesWithIds]);
     setIsLoggingPace(false);
     try {
       const createdLogs = await api.createLogs(entriesWithIds, note, date);
@@ -185,8 +246,18 @@ export default function App() {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (loading) return;
+    
+    // Auto-pull tasks
+    tasks.forEach(t => {
+      if (t.targetDay !== 'today' && t.status !== 'done') {
+        if (t.targetDay.match(/^\d{4}-\d{2}-\d{2}$/) && t.targetDay <= todayStr) {
+          handlePullToToday(t.id);
+        }
+      }
+    });
+
     const todayDate = new Date(todayStr);
     goals.forEach(g => {
       if (g.status === 'completed' && g.completedAt) {
@@ -197,11 +268,7 @@ export default function App() {
         }
       }
     });
-  }, [goals, todayStr, loading]);
-
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen"><span className="text-amber-500 font-mono animate-pulse">BOOTING CADENCE ENGINE...</span></div>;
-  }
+  }, [goals, tasks, todayStr, loading]);
 
   const selectedGoal = goals.find(g => g.id === selectedGoalId);
   const selectedStats = selectedGoal ? paceStats[selectedGoal.id] : null;
@@ -215,121 +282,185 @@ export default function App() {
     return diffDays <= 25;
   });
 
+  const totalTodayLogged = useMemo(() => {
+    return logs.filter(l => l.date === todayStr).reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0);
+  }, [logs, todayStr]);
+  
+  const totalTodayPlanned = useMemo(() => {
+    return activeGoals.reduce((acc, g) => {
+      const stats = paceStats[g.id];
+      return acc + (stats?.requiredDailyPace || 0);
+    }, 0);
+  }, [activeGoals, paceStats]);
+
+  const streakCount = useMemo(() => calculateStreak(logs, todayStr), [logs, todayStr]);
+  const last7DaysLogs = useMemo(() => getLast7DaysLogs(logs, todayStr), [logs, todayStr]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-screen"><span className="text-[#7166dc] font-bold animate-pulse">LOADING DASHBOARD...</span></div>;
+  }
+
   return (
-    <div className="min-h-screen pb-20">
-      <header className="sticky top-0 z-50 bg-canvas/80 backdrop-blur-xl border-b border-surface-borderStrong shadow-lg shadow-black/20">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 
-              onClick={() => setCurrentView('today')}
-              className="text-lg font-black tracking-tighter text-zinc-100 cursor-pointer flex items-center gap-2"
-            >
-              <div className="w-4 h-4 bg-amber-500 rounded-sm"></div>
-              Apexx tracker <span className="text-zinc-500 font-normal text-sm hidden sm:inline">/ PACE ENGINE</span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* History — clock icon on mobile, text on desktop */}
-            <button 
-              onClick={() => setCurrentView('history')}
-              className="text-zinc-500 hover:text-amber-400 transition-colors flex items-center gap-1"
-              title="History"
-            >
-              {/* Clock icon — always visible */}
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />
-              </svg>
-              <span className="text-xs font-mono hidden sm:inline">HISTORY</span>
-            </button>
-            <span className="text-xs font-mono text-zinc-500 hidden sm:inline bg-surface py-1 px-2 rounded-lg border border-surface-border">SIM: {todayStr}</span>
-            {currentView === 'today' && !isLoggingPace && (
-              <button 
-                onClick={() => setCurrentView('new_goal')}
-                className="text-xs font-mono bg-surface hover:bg-surface-subtle text-zinc-300 border border-surface-borderStrong px-3 py-1.5 rounded-lg transition-colors"
-              >
-                + NEW GOAL
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
+    <main className="liquid-app">
+      <div className="orb orb-pink" /><div className="orb orb-blue" /><div className="orb orb-yellow" />
+      
+      <MobileNav 
+        currentView={currentView} 
+        setCurrentView={setCurrentView} 
+      />
 
-      <main className="max-w-6xl mx-auto px-4 md:px-8 py-8">
-        {currentView === 'new_goal' && (
-          <NewGoalForm 
-            onSubmit={handleCreateGoal} 
-            onCancel={() => setCurrentView('today')} 
-          />
-        )}
-
-        {isLoggingPace && (
-          <DailyLogForm 
-            goals={currentView === 'goal_detail' ? [selectedGoal] : goals} 
-            onSubmit={handleSubmitLog}
-            onCancel={() => setIsLoggingPace(false)}
-          />
-        )}
-
-        {currentView === 'today' && !isLoggingPace && (
-          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Top Stats Overview */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {activeGoals.map(g => (
-                <CountdownHeader 
-                  key={g.id} 
-                  goal={g} 
-                  stats={paceStats[g.id]} 
-                  onClickGoal={() => { setSelectedGoalId(g.id); setCurrentView('goal_detail'); }}
-                  onDelete={handleDeleteGoal}
-                  onComplete={handleCompleteGoal}
-                />
-              ))}
+      <div className="dashboard-wrapper">
+        <section className="dashboard">
+          <header className="topbar">
+            <div>
+              <span className="eyebrow">Apexx Tracker</span>
+              <h1>Your space to <em>make progress.</em></h1>
             </div>
+            <div className="top-actions">
+              <span className="sim-badge">SIM: {todayStr}</span>
+              <button className="history-btn" onClick={() => setIsLoggingPace(true)}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Commit Log
+              </button>
+            </div>
+          </header>
 
-            {/* Daily Execution Board */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-4">
-                <div className="flex items-center justify-between border-b border-surface-borderStrong pb-2">
-                  <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-zinc-300">Pace Drivers</h2>
-                  <button 
-                    onClick={() => setIsLoggingPace(true)}
-                    className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 px-2 py-1 rounded font-mono uppercase tracking-wider transition-colors"
-                  >
-                    Commit Log
-                  </button>
-                </div>
-                
-                <div className="flex flex-col gap-4">
-                  {activeGoals.map(g => (
-                    <GoalCard 
-                      key={g.id} 
-                      goal={g} 
-                      stats={paceStats[g.id]} 
-                      onSelectGoal={() => { setSelectedGoalId(g.id); setCurrentView('goal_detail'); }}
-                      onLogClick={(id) => { setSelectedGoalId(id); setIsLoggingPace(true); setCurrentView('goal_detail'); }}
-                      onDelete={handleDeleteGoal}
-                      onComplete={handleCompleteGoal}
-                    />
-                  ))}
-                  {activeGoals.length === 0 && (
-                    <div className="text-sm text-zinc-500 font-mono p-4 border border-dashed border-surface-border rounded-xl text-center">
-                      No active goals initialized.
-                    </div>
-                  )}
-                </div>
-              </div>
+          {currentView === 'new_goal' && (
+            <div className="mb-8">
+              <NewGoalForm 
+                onSubmit={handleCreateGoal} 
+                onCancel={() => setCurrentView('today')} 
+              />
+            </div>
+          )}
 
-              <div className="lg:col-span-2 space-y-6">
-                <div className="border-b border-surface-borderStrong pb-2 flex justify-between items-end">
-                  <h2 className="text-sm font-bold font-mono tracking-widest uppercase text-zinc-300">Today's Operating Cadence</h2>
-                  <span className="text-[10px] font-mono text-zinc-500">PRIORITY SORTED</span>
-                </div>
-                
-                <div className="space-y-2">
-                  <TaskForm onSubmit={handleCreateTask} />
+          {isLoggingPace && (
+            <div className="mb-8 relative z-[90]">
+              <DailyLogForm 
+                goals={currentView === 'goal_detail' ? [selectedGoal] : goals} 
+                onSubmit={handleSubmitLog}
+                onCancel={() => setIsLoggingPace(false)}
+              />
+            </div>
+          )}
+
+          {currentView === 'today' && !isLoggingPace && (
+            <div className="bento-grid">
+              
+              <section className="hero glass-card">
+                <div className="hero-copy">
+                  <span className="eyebrow">Daily rhythm</span>
+                  <h2>Pace Engine<br /><em>Active</em></h2>
+                  <p>A calm plan for a meaningful day.</p>
                   
+                  <div className="mt-8">
+                     <span className="text-xs text-[#969caf] uppercase tracking-widest block mb-2">Global Stats</span>
+                     <div className="flex gap-4">
+                       <div>
+                         <div className="text-2xl font-bold text-[#7166dc]">{activeGoals.length}</div>
+                         <div className="text-[10px] text-[#969caf] uppercase">Active Goals</div>
+                       </div>
+                       <div>
+                         <div className="text-2xl font-bold text-[#7166dc]">{tasks.filter(t => t.targetDay === 'today' && t.status !== 'done').length}</div>
+                         <div className="text-[10px] text-[#969caf] uppercase">Inbox</div>
+                       </div>
+                     </div>
+                  </div>
+                </div>
+                <div className="hero-orbit">
+                  <div className="orbit-ring" style={{ background: `conic-gradient(#e99e83 0 ${Math.min(100, Math.max(5, (streakCount/30)*100))}%, #ffffff55 ${Math.min(100, Math.max(5, (streakCount/30)*100))}%)` }}>
+                    <span className="text-[#25283b]">{streakCount}</span>
+                    <small>day streak</small>
+                  </div>
+                  <svg className="hero-flame" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
+                </div>
+              </section>
+              
+              <section className="metric glass-card">
+                <div className="metric-top">
+                  <span className="eyebrow">Today's Focus</span>
+                  <div className="icon-bubble purple">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </div>
+                </div>
+                <strong>{totalTodayLogged}<span> min</span></strong>
+                <div className="meter"><i style={{ width: `${Math.min(100, (totalTodayLogged / (totalTodayPlanned || 1)) * 100)}%` }} /></div>
+                <div className="metric-foot">
+                  <span>{Math.round((totalTodayLogged / (totalTodayPlanned || 1)) * 100)}% of planned pace</span>
+                  <span>{Math.max(0, totalTodayPlanned - totalTodayLogged)} min left</span>
+                </div>
+              </section>
+
+              <section className="metric glass-card peach-card">
+                <div className="metric-top">
+                  <span className="eyebrow">Tasks Done</span>
+                  <div className="icon-bubble peach">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  </div>
+                </div>
+                <strong>{tasks.filter(t => t.targetDay === 'today' && t.status === 'done').length}<span> tasks</span></strong>
+                <div className="mini-bars">
+                  {last7DaysLogs.map((amt, i) => (
+                    <i key={i} style={{ height: `${Math.max(10, Math.min(100, (amt / 120) * 100))}%` }} />
+                  ))}
+                </div>
+                <div className="metric-foot">
+                  <span>Last 7 days logged activity</span>
+                </div>
+              </section>
+
+              <section className="goals-panel glass-card">
+                <div className="panel-head">
+                  <div>
+                    <span className="eyebrow">Your intentions</span>
+                    <h2>Active goals</h2>
+                  </div>
+                </div>
+                <div className="goal-list">
+                  {activeGoals.length === 0 ? (
+                    <div className="text-sm text-[#969caf] p-4 text-center border border-dashed border-[#969caf]/30 rounded-xl">No active goals initialized.</div>
+                  ) : activeGoals.map((g, index) => {
+                    const stats = paceStats[g.id];
+                    return (
+                      <div className="goal-line group" key={g.id} onClick={() => { setSelectedGoalId(g.id); setCurrentView('goal_detail'); }}>
+                        <div className={`goal-symbol ${index % 2 === 0 ? 'violet' : 'coral'}`}>
+                           <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                        </div>
+                        <div className="goal-info">
+                          <strong className="group-hover:text-[#7166dc] transition-colors">{g.title}</strong>
+                          <div className="meta">
+                            <span className={`badge ${stats.paceStatus}`}>{stats.paceLabel}</span>
+                            <span>{stats.daysRemaining} days left</span>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2 text-[9px] text-[#969caf]">
+                            <span>Req: {stats.requiredDailyPace} m/d</span>
+                            <span>•</span>
+                            <span>Avg: {stats.averageDailyPace} m/d</span>
+                          </div>
+                          <div className="goal-track"><i style={{ width: `${Math.min(100, (stats.totalMinutesLogged / (g.totalPlannedMinutes || 1)) * 100)}%` }} /></div>
+                        </div>
+                        <b>{Math.round((stats.totalMinutesLogged / (g.totalPlannedMinutes || 1)) * 100)}%</b>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="tasks-panel glass-card">
+                <div className="panel-head">
+                  <div>
+                    <span className="eyebrow">Small steps, big picture</span>
+                    <h2>Today's cadence</h2>
+                  </div>
+                </div>
+                
+                <div className="mt-4 mb-2 relative z-50">
+                  <TaskForm onSubmit={handleCreateTask} />
+                </div>
+                
+                <div className="task-list">
                   {tasks.filter(t => t.targetDay === 'today' && t.status !== 'done').length === 0 ? (
-                    <div className="p-8 text-center border border-dashed border-surface-border rounded-xl text-zinc-500 font-mono text-sm">
+                    <div className="p-8 text-center text-[#969caf] text-sm border border-dashed border-[#969caf]/30 rounded-xl">
                       Zero inbox. Add tasks or pull from backlog.
                     </div>
                   ) : (
@@ -349,13 +480,12 @@ export default function App() {
                          ))
                   )}
 
-                  {/* Future / Backlog Tasks visible on Dashboard */}
                   {tasks.filter(t => t.targetDay !== 'today' && t.status !== 'done').length > 0 && (
                     <div className="pt-6">
-                      <div className="border-b border-surface-borderStrong pb-2 mb-2 flex justify-between items-end">
-                        <h3 className="text-xs font-bold font-mono tracking-widest uppercase text-zinc-500">Upcoming / Backlog</h3>
+                      <div className="pb-2 mb-2">
+                        <h3 className="text-[10px] font-bold tracking-widest uppercase text-[#969caf]">Upcoming / Backlog</h3>
                       </div>
-                      <div className="space-y-2 opacity-70 hover:opacity-100 transition-opacity">
+                      <div className="space-y-2 opacity-75 hover:opacity-100 transition-opacity">
                         {tasks.filter(t => t.targetDay !== 'today' && t.status !== 'done')
                              .sort((a,b) => {
                                 const p = {high:3, medium:2, low:1};
@@ -374,113 +504,120 @@ export default function App() {
                       </div>
                     </div>
                   )}
-                </div>
 
-                {tasks.filter(t => t.targetDay === 'today' && t.status === 'done').length > 0 && (
-                  <div className="mt-8">
-                    <h3 className="text-xs font-mono uppercase text-zinc-600 mb-3 tracking-widest">Completed Today</h3>
-                    <div className="space-y-2">
-                      {tasks.filter(t => t.targetDay === 'today' && t.status === 'done').map(t => (
-                        <TaskRow 
-                          key={t.id} 
-                          task={t} 
-                          onToggle={handleToggleTaskStatus}
-                          onUpdateSpent={handleUpdateTaskSpent}
-                          onDelete={handleDeleteTask}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {currentView === 'goal_detail' && selectedGoal && !isLoggingPace && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <button 
-              onClick={() => setCurrentView('today')}
-              className="text-xs font-mono text-zinc-500 hover:text-zinc-300 flex items-center gap-2 mb-2"
-            >
-              &larr; BACK TO TODAY
-            </button>
-
-            <CountdownHeader goal={selectedGoal} stats={selectedStats} onDelete={handleDeleteGoal} />
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="glass-card p-4">
-                <div className="text-[10px] text-zinc-500 font-mono uppercase">Logged Total</div>
-                <div className="text-2xl font-black font-num text-zinc-100">{selectedStats.totalMinutesLogged} <span className="text-sm font-normal text-zinc-500">min</span></div>
-                <div className="text-xs text-zinc-400 mt-1">{selectedStats.remainingMinutes} min remaining</div>
-              </div>
-              <div className="glass-card p-4">
-                <div className="text-[10px] text-zinc-500 font-mono uppercase">Current Avg Pace</div>
-                <div className="text-2xl font-black font-num text-zinc-100">{selectedStats.averageDailyPace} <span className="text-sm font-normal text-zinc-500">m/d</span></div>
-              </div>
-              <div className="glass-card p-4 border-amber-500/20">
-                <div className="text-[10px] text-amber-500/80 font-mono uppercase">Required Pace</div>
-                <div className="text-2xl font-black font-num text-amber-400">{selectedStats.requiredDailyPace} <span className="text-sm font-normal text-amber-500/50">m/d</span></div>
-              </div>
-              <div className="glass-card p-4">
-                <div className="text-[10px] text-zinc-500 font-mono uppercase">Projected Finish</div>
-                <div className="text-lg font-bold font-mono text-zinc-100 mt-1">
-                  {selectedStats.projectedFinishDate}
-                </div>
-                <div className="text-[10px] text-zinc-400 mt-1">
-                  {selectedStats.projectedDaysNeeded > 0 ? `${selectedStats.projectedDaysNeeded} days needed at current pace` : 'N/A'}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-8">
-              <div>
-                <h3 className="text-sm font-bold font-mono tracking-widest uppercase text-zinc-300 border-b border-surface-borderStrong pb-2 mb-4">Recent Logs</h3>
-                <div className="space-y-2">
-                  {logs.filter(l => l.goalId === selectedGoal.id).length === 0 ? (
-                    <div className="text-xs text-zinc-500 font-mono italic">No logs yet.</div>
-                  ) : (
-                    logs.filter(l => l.goalId === selectedGoal.id).slice(-10).reverse().map((l, i) => (
-                      <div key={i} className="glass-panel p-3 flex justify-between items-center text-sm font-mono">
-                        <span className="text-zinc-400">{l.date}</span>
-                        <div className="text-right">
-                          <span className="text-amber-400 font-bold">+{l.minutesLogged}</span> <span className="text-zinc-500 text-xs">min</span>
-                          {l.note && <div className="text-[10px] text-zinc-500 mt-1 max-w-[200px] truncate">{l.note}</div>}
-                        </div>
+                  {tasks.filter(t => t.targetDay === 'today' && t.status === 'done').length > 0 && (
+                    <div className="pt-6">
+                      <h3 className="text-[10px] font-bold uppercase text-[#969caf] mb-3 tracking-widest">Completed Today</h3>
+                      <div className="space-y-2">
+                        {tasks.filter(t => t.targetDay === 'today' && t.status === 'done').map(t => (
+                          <TaskRow 
+                            key={t.id} 
+                            task={t} 
+                            onToggle={handleToggleTaskStatus}
+                            onUpdateSpent={handleUpdateTaskSpent}
+                            onDelete={handleDeleteTask}
+                          />
+                        ))}
                       </div>
-                    ))
+                    </div>
                   )}
                 </div>
+              </section>
+            </div>
+          )}
+
+          {currentView === 'goal_detail' && selectedGoal && !isLoggingPace && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <button 
+                onClick={() => setCurrentView('today')}
+                className="text-xs font-bold text-[#7166dc] hover:text-[#5d51ce] flex items-center gap-2 mb-2 bg-[#7166dc]/10 px-3 py-1.5 rounded-lg w-max"
+              >
+                &larr; BACK TO TODAY
+              </button>
+
+              <CountdownHeader goal={selectedGoal} stats={selectedStats} onDelete={handleDeleteGoal} />
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="glass-card p-4">
+                  <div className="text-[10px] text-[#969caf] uppercase font-bold tracking-wider">Logged Total</div>
+                  <div className="text-3xl font-black text-[#25283b] mt-1">{selectedStats.totalMinutesLogged} <span className="text-sm font-normal text-[#969caf]">min</span></div>
+                  <div className="text-xs text-[#7166dc] mt-1 font-medium">{selectedStats.remainingMinutes} min remaining</div>
+                </div>
+                <div className="glass-card p-4">
+                  <div className="text-[10px] text-[#969caf] uppercase font-bold tracking-wider">Current Avg Pace</div>
+                  <div className="text-3xl font-black text-[#25283b] mt-1">{selectedStats.averageDailyPace} <span className="text-sm font-normal text-[#969caf]">m/d</span></div>
+                </div>
+                <div className="glass-card p-4" style={{ borderColor: 'rgba(245,158,11,0.3)' }}>
+                  <div className="text-[10px] text-[#f59e0b] uppercase font-bold tracking-wider">Required Pace</div>
+                  <div className="text-3xl font-black text-[#f59e0b] mt-1">{selectedStats.requiredDailyPace} <span className="text-sm font-normal opacity-70">m/d</span></div>
+                </div>
+                <div className="glass-card p-4">
+                  <div className="text-[10px] text-[#969caf] uppercase font-bold tracking-wider">Projected Finish</div>
+                  <div className="text-xl font-bold text-[#25283b] mt-1">
+                    {selectedStats.projectedFinishDate}
+                  </div>
+                  <div className="text-[10px] text-[#7166dc] mt-1 font-medium">
+                    {selectedStats.projectedDaysNeeded > 0 ? `${selectedStats.projectedDaysNeeded} days needed at current pace` : 'N/A'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-8 mt-4">
+                <div>
+                  <h3 className="text-[10px] font-bold tracking-widest uppercase text-[#969caf] border-b border-[#969caf]/20 pb-2 mb-4">Recent Logs</h3>
+                  <div className="space-y-2">
+                    {logs.filter(l => l.goalId === selectedGoal.id).length === 0 ? (
+                      <div className="text-xs text-[#969caf] italic">No logs yet.</div>
+                    ) : (
+                      logs.filter(l => l.goalId === selectedGoal.id).slice(-10).reverse().map((l, i) => (
+                        <div key={i} className="glass-card p-3 flex justify-between items-center text-sm">
+                          <span className="text-[#969caf] font-mono">{l.date}</span>
+                          <div className="text-right">
+                            <span className="text-amber-500 font-bold">+{l.minutesLogged}</span> <span className="text-[#969caf] text-xs">min</span>
+                            {l.note && <div className="text-[10px] text-[#969caf] mt-1 max-w-[200px] truncate">{l.note}</div>}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {currentView === 'history' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-            <h2 className="text-xl font-bold font-mono tracking-tight text-zinc-100 border-b border-surface-borderStrong pb-4">
-              Completed History (Last 25 Days)
-            </h2>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {completedGoals.map(g => (
-                <CountdownHeader 
-                  key={g.id} 
-                  goal={g} 
-                  stats={paceStats[g.id]} 
-                  onClickGoal={() => { setSelectedGoalId(g.id); setCurrentView('goal_detail'); }}
-                  onDelete={handleDeleteGoal}
-                />
-              ))}
-              {completedGoals.length === 0 && (
-                <div className="text-sm text-zinc-500 font-mono p-4 border border-dashed border-surface-border rounded-xl text-center col-span-full">
-                  No completed goals recently.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-    </div>
+          {currentView === 'history' && (
+             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+               <button 
+                 onClick={() => setCurrentView('today')}
+                 className="text-xs font-bold text-[#7166dc] hover:text-[#5d51ce] flex items-center gap-2 mb-2 bg-[#7166dc]/10 px-3 py-1.5 rounded-lg w-max"
+               >
+                 &larr; BACK TO TODAY
+               </button>
+               <h2 className="text-2xl font-bold text-[#25283b] pb-4 border-b border-[#969caf]/20">
+                 Completed History (Last 25 Days)
+               </h2>
+               
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                 {completedGoals.map(g => (
+                   <CountdownHeader 
+                     key={g.id} 
+                     goal={g} 
+                     stats={paceStats[g.id]} 
+                     onClickGoal={() => { setSelectedGoalId(g.id); setCurrentView('goal_detail'); }}
+                     onDelete={handleDeleteGoal}
+                   />
+                 ))}
+                 {completedGoals.length === 0 && (
+                   <div className="text-sm text-[#969caf] p-8 glass-card text-center col-span-full">
+                     No completed goals recently.
+                   </div>
+                 )}
+               </div>
+             </div>
+          )}
+
+        </section>
+      </div>
+    </main>
   );
 }

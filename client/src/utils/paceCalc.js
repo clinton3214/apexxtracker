@@ -55,10 +55,13 @@ export function calculatePace(goal, logs, tasks, todayStr) {
     // Same-day goal — no logs needed, just show active status
     paceStatus = 'onTrack';
     paceLabel = 'Due Today';
-  } else if (goalLogs.length === 0) {
-    // Multi-day goal with genuinely no data yet
-    paceStatus = 'nodata';
-    paceLabel = 'Not enough data yet';
+  } else if (goalLogs.length === 0 && daysElapsed === 0) {
+    // Created today, no logs yet
+    paceStatus = 'onTrack';
+    paceLabel = 'Just Started';
+  } else if (goalLogs.length === 0 && daysElapsed > 0) {
+    paceStatus = 'behind';
+    paceLabel = 'Behind (No logs)';
   } else if (averageDailyPace >= requiredDailyPace * 1.1) {
     paceStatus = 'ahead';
     paceLabel = 'Ahead';
