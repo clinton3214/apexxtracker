@@ -39,6 +39,19 @@ const initDB = async () => {
         minutesLogged INTEGER NOT NULL,
         note TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS reminders (
+        id VARCHAR(255) PRIMARY KEY,
+        text TEXT NOT NULL,
+        time TEXT,
+        completed BOOLEAN DEFAULT false,
+        createdAt TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS reminder_meta (
+        key VARCHAR(255) PRIMARY KEY,
+        value TEXT NOT NULL
+      );
     `);
     console.log("Database initialized");
   } catch (error) {

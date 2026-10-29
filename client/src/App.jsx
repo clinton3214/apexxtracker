@@ -6,6 +6,7 @@ import TaskRow from './components/TaskRow';
 import TaskForm from './components/TaskForm';
 import DailyLogForm from './components/DailyLogForm';
 import NewGoalForm from './components/NewGoalForm';
+import RemindersSection from './components/RemindersSection';
 
 function MobileNav({ currentView, setCurrentView }) {
   const [expanded, setExpanded] = useState(false);
@@ -36,13 +37,16 @@ function MobileNav({ currentView, setCurrentView }) {
     <aside className={`side-rail glass-card ${expanded ? 'expanded' : ''}`} onClick={() => !expanded && setExpanded(true)}>
       <div className="logo" onClick={(e) => { if (expanded) { e.stopPropagation(); setExpanded(false); } }}>A<span /></div>
       <nav>
-        <button className={currentView === 'today' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('today'); setExpanded(false); }} aria-label="Overview">
+        <button className={currentView === 'today' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('today'); setExpanded(false); }} aria-label="Overview" title="Today Overview">
           <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
         </button>
-        <button className={currentView === 'new_goal' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('new_goal'); setExpanded(false); }} aria-label="New Goal">
+        <button className={currentView === 'new_goal' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('new_goal'); setExpanded(false); }} aria-label="New Goal" title="New Goal">
           <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <button className={currentView === 'history' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('history'); setExpanded(false); }} aria-label="History">
+        <button className={currentView === 'reminders' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('reminders'); setExpanded(false); }} aria-label="Reminders" title="Reminders">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        </button>
+        <button className={currentView === 'history' ? 'rail-active' : ''} onClick={(e) => { e.stopPropagation(); setCurrentView('history'); setExpanded(false); }} aria-label="History" title="History">
           <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </button>
       </nav>
@@ -92,7 +96,8 @@ export default function App() {
   const [goals, setGoals] = useState([]);
   const [logs, setLogs] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [currentView, setCurrentView] = useState('today'); // 'today' | 'goal_detail' | 'new_goal' | 'history'
+  const [reminders, setReminders] = useState([]);
+  const [currentView, setCurrentView] = useState('today'); // 'today' | 'goal_detail' | 'new_goal' | 'reminders' | 'history'
   const [selectedGoalId, setSelectedGoalId] = useState(null);
   const [isLoggingPace, setIsLoggingPace] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -101,14 +106,16 @@ export default function App() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [g, l, t] = await Promise.all([
+        const [g, l, t, r] = await Promise.all([
           api.fetchGoals(),
           api.fetchLogs(),
-          api.fetchTasks()
+          api.fetchTasks(),
+          api.fetchReminders()
         ]);
         setGoals(g);
         setLogs(l);
         setTasks(t);
+        setReminders(r || []);
       } catch (err) {
         console.error('Error loading data', err);
       } finally {
@@ -265,6 +272,51 @@ export default function App() {
     }
   };
 
+  const handleCreateReminder = async (data) => {
+    const tempId = Date.now().toString();
+    const newRem = {
+      id: tempId,
+      text: data.text,
+      time: data.time || '',
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+    setReminders(prev => [newRem, ...prev]);
+    try {
+      const created = await api.createReminder(newRem);
+      setReminders(prev => prev.map(r => r.id === tempId ? created : r));
+    } catch (e) {
+      console.error('Error creating reminder:', e);
+      setReminders(prev => prev.filter(r => r.id !== tempId));
+    }
+  };
+
+  const handleToggleReminder = async (id) => {
+    const rem = reminders.find(r => r.id === id);
+    if (!rem) return;
+    const newCompleted = !rem.completed;
+    setReminders(prev => prev.map(r => r.id === id ? { ...r, completed: newCompleted } : r));
+    try {
+      const updated = await api.updateReminder(id, { completed: newCompleted });
+      setReminders(prev => prev.map(r => r.id === id ? updated : r));
+    } catch (e) {
+      console.error('Error toggling reminder:', e);
+      setReminders(prev => prev.map(r => r.id === id ? { ...r, completed: rem.completed } : r));
+    }
+  };
+
+  const handleDeleteReminder = async (id) => {
+    const rem = reminders.find(r => r.id === id);
+    if (!rem) return;
+    setReminders(prev => prev.filter(r => r.id !== id));
+    try {
+      await api.deleteReminder(id);
+    } catch (e) {
+      console.error('Error deleting reminder:', e);
+      setReminders(prev => [...prev, rem]);
+    }
+  };
+
   useEffect(() => {
     if (loading) return;
     
@@ -356,9 +408,14 @@ export default function App() {
           {isLoggingPace && (
             <div className="mb-8 relative z-[90]">
               <DailyLogForm 
-                goals={currentView === 'goal_detail' ? [selectedGoal] : goals} 
+                goals={
+                  currentView === 'goal_detail' && selectedGoal 
+                    ? [selectedGoal] 
+                    : (selectedGoalId ? [goals.find(g => g.id === selectedGoalId) || selectedGoal].filter(Boolean) : activeGoals)
+                } 
+                paceStats={paceStats}
                 onSubmit={handleSubmitLog}
-                onCancel={() => setIsLoggingPace(false)}
+                onCancel={() => { setIsLoggingPace(false); }}
               />
             </div>
           )}
@@ -458,7 +515,21 @@ export default function App() {
                           </div>
                           <div className="goal-track"><i style={{ width: `${Math.min(100, (stats.totalMinutesLogged / (g.totalPlannedMinutes || 1)) * 100)}%` }} /></div>
                         </div>
-                        <b>{Math.round((stats.totalMinutesLogged / (g.totalPlannedMinutes || 1)) * 100)}%</b>
+                        <div className="flex items-center gap-2.5">
+                          <b>{Math.round((stats.totalMinutesLogged / (g.totalPlannedMinutes || 1)) * 100)}%</b>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedGoalId(g.id);
+                              setIsLoggingPace(true);
+                            }}
+                            title="Commit progress (% or mins)"
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#7166dc]/15 text-[#7166dc] hover:bg-[#7166dc] hover:text-white transition-all shadow-sm flex items-center gap-1"
+                          >
+                            + Log
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -542,17 +613,36 @@ export default function App() {
                   )}
                 </div>
               </section>
+
+              {/* Telegram Reminders Section */}
+              <div className="col-span-full">
+                <RemindersSection 
+                  reminders={reminders}
+                  onCreateReminder={handleCreateReminder}
+                  onToggleReminder={handleToggleReminder}
+                  onDeleteReminder={handleDeleteReminder}
+                />
+              </div>
             </div>
           )}
 
           {currentView === 'goal_detail' && selectedGoal && !isLoggingPace && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <button 
-                onClick={() => setCurrentView('today')}
-                className="text-xs font-bold text-[#7166dc] hover:text-[#5d51ce] flex items-center gap-2 mb-2 bg-[#7166dc]/10 px-3 py-1.5 rounded-lg w-max"
-              >
-                &larr; BACK TO TODAY
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <button 
+                  onClick={() => setCurrentView('today')}
+                  className="text-xs font-bold text-[#7166dc] hover:text-[#5d51ce] flex items-center gap-2 bg-[#7166dc]/10 px-3 py-1.5 rounded-lg w-max"
+                >
+                  &larr; BACK TO TODAY
+                </button>
+                <button
+                  onClick={() => setIsLoggingPace(true)}
+                  className="bg-[#7166dc] hover:bg-[#5d51ce] text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-2 shadow-md shadow-[#7166dc]/25 transition-all"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Commit Progress (% or Mins)
+                </button>
+              </div>
 
               <CountdownHeader goal={selectedGoal} stats={selectedStats} onDelete={handleDeleteGoal} />
               
@@ -601,6 +691,24 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {currentView === 'reminders' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+              <button 
+                onClick={() => setCurrentView('today')}
+                className="text-xs font-bold text-[#7166dc] hover:text-[#5d51ce] flex items-center gap-2 mb-2 bg-[#7166dc]/10 px-3 py-1.5 rounded-lg w-max"
+              >
+                &larr; BACK TO TODAY
+              </button>
+              <RemindersSection 
+                reminders={reminders}
+                onCreateReminder={handleCreateReminder}
+                onToggleReminder={handleToggleReminder}
+                onDeleteReminder={handleDeleteReminder}
+                isStandalone={true}
+              />
             </div>
           )}
 

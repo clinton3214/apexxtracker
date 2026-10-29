@@ -79,3 +79,35 @@ export const createLogs = async (entries, note, date) => {
   if (!res.ok) throw new Error('Failed to create logs');
   return res.json();
 };
+
+export const fetchReminders = async () => {
+  const res = await fetch(`${API_URL}/reminders`);
+  if (!res.ok) throw new Error('Failed to fetch reminders');
+  return res.json();
+};
+
+export const createReminder = async (reminderData) => {
+  const res = await fetch(`${API_URL}/reminders`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(reminderData)
+  });
+  if (!res.ok) throw new Error('Failed to create reminder');
+  return res.json();
+};
+
+export const updateReminder = async (id, updates) => {
+  const res = await fetch(`${API_URL}/reminders/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  });
+  if (!res.ok) throw new Error('Failed to update reminder');
+  return res.json();
+};
+
+export const deleteReminder = async (id) => {
+  const res = await fetch(`${API_URL}/reminders/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete reminder');
+  return res.json();
+};
