@@ -80,6 +80,12 @@ export const createLogs = async (entries, note, date) => {
   return res.json();
 };
 
+export const deleteLog = async (id) => {
+  const res = await fetch(`${API_URL}/logs/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete log');
+  return res.json();
+};
+
 export const fetchReminders = async () => {
   const res = await fetch(`${API_URL}/reminders`);
   if (!res.ok) throw new Error('Failed to fetch reminders');

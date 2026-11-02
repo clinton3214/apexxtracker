@@ -12,7 +12,7 @@ export function calculatePace(goal, logs, tasks, todayStr) {
   const daysRemaining = Math.max(0, Math.round((deadline - today) / (1000 * 60 * 60 * 24)));
 
   const goalLogs = logs.filter(l => l.goalId === goal.id);
-  const totalMinutesLogged = goalLogs.reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0);
+  const totalMinutesLogged = Math.max(0, goalLogs.reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0));
 
   const averageDailyPace = daysElapsed > 0 ? Math.round(totalMinutesLogged / daysElapsed) : 0;
 
@@ -75,7 +75,7 @@ export function calculatePace(goal, logs, tasks, todayStr) {
 
   // Today's actual logged for this goal
   const todayLogs = goalLogs.filter(l => l.date === todayStr);
-  const todayLoggedMinutes = todayLogs.reduce((acc, l) => acc + Number(l.minutesLogged || 0), 0);
+  const todayLoggedMinutes = Math.max(0, todayLogs.reduce((acc, l) => acc + Number(l.minutesLogged || 0), 0));
 
   // Tasks under this goal
   const goalTasks = tasks.filter(t => t.goalId === goal.id);

@@ -87,7 +87,7 @@ function getLast7DaysLogs(logs, todayStr) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(new Date(todayStr).getTime() - (i * 86400000)).toISOString().split('T')[0];
     const sum = logs.filter(l => l.date === d).reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0);
-    result.push(sum);
+    result.push(Math.max(0, sum));
   }
   return result;
 }
@@ -256,7 +256,7 @@ export default function App() {
       ...e,
       id: Date.now().toString() + '-' + e.goalId,
       date,
-      note
+      note: e.note !== undefined ? e.note : note
     }));
     setLogs(prev => [...prev, ...entriesWithIds]);
     setIsLoggingPace(false);
@@ -269,6 +269,18 @@ export default function App() {
     } catch (e) {
       console.error(e);
       setLogs(prev => prev.filter(l => !entriesWithIds.find(e => e.id === l.id)));
+    }
+  };
+
+  const handleDeleteLog = async (logId) => {
+    const logToDelete = logs.find(l => l.id === logId);
+    if (!logToDelete) return;
+    setLogs(prev => prev.filter(l => l.id !== logId));
+    try {
+      await api.deleteLog(logId);
+    } catch (e) {
+      console.error('Failed to delete log:', e);
+      setLogs(prev => [...prev, logToDelete]);
     }
   };
 
@@ -354,7 +366,7 @@ export default function App() {
   });
 
   const totalTodayLogged = useMemo(() => {
-    return logs.filter(l => l.date === todayStr).reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0);
+    return Math.max(0, logs.filter(l => l.date === todayStr).reduce((acc, l) => acc + (Number(l.minutesLogged) || 0), 0));
   }, [logs, todayStr]);
   
   const totalTodayPlanned = useMemo(() => {
@@ -679,10 +691,26 @@ export default function App() {
                       <div className="text-xs text-[#969caf] italic">No logs yet.</div>
                     ) : (
                       logs.filter(l => l.goalId === selectedGoal.id).slice(-10).reverse().map((l, i) => (
-                        <div key={i} className="glass-card p-3 flex justify-between items-center text-sm">
-                          <span className="text-[#969caf] font-mono">{l.date}</span>
+                        <div key={l.id || i} className="glass-card p-3 flex justify-between items-center text-sm group/log">
+                          <div className="flex items-center gap-2">
+                            {l.id && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLog(l.id)}
+                                title="Delete this log entry"
+                                className="text-[#969caf] hover:text-rose-500 opacity-0 group-hover/log:opacity-100 transition-opacity p-0.5"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                                  <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clipRule="evenodd" />
+                                </svg>
+                              </button>
+                            )}
+                            <span className="text-[#969caf] font-mono">{l.date}</span>
+                          </div>
                           <div className="text-right">
-                            <span className="text-amber-500 font-bold">+{l.minutesLogged}</span> <span className="text-[#969caf] text-xs">min</span>
+                            <span className={`font-bold ${Number(l.minutesLogged) < 0 ? 'text-rose-500' : 'text-amber-500'}`}>
+                              {Number(l.minutesLogged) > 0 ? `+${l.minutesLogged}` : l.minutesLogged}
+                            </span> <span className="text-[#969caf] text-xs">min</span>
                             {l.note && <div className="text-[10px] text-[#969caf] mt-1 max-w-[200px] truncate">{l.note}</div>}
                           </div>
                         </div>

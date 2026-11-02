@@ -6,17 +6,20 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
     const state = {};
     goals.forEach(g => {
       const stats = paceStats[g.id] || {};
-      const totalLogged = stats.totalMinutesLogged || 0;
+      const totalLogged = Math.max(0, stats.totalMinutesLogged || 0);
       const planned = g.totalPlannedMinutes || 1200;
-      const currentPercent = Math.min(100, Math.round((totalLogged / planned) * 100));
+      const currentPercent = Math.min(100, Math.max(0, Math.round((totalLogged / planned) * 100)));
 
       state[g.id] = {
         goalId: g.id,
-        mode: 'minutes', // 'minutes' or 'percentage'
-        percentMode: 'overall', // 'overall' (e.g. "I'm 50% done") or 'increment' (e.g. "+10% today")
+        mode: 'percentage', // 'percentage' or 'minutes'
+        percentMode: 'overall', // 'overall' (e.g. "I'm at 40%") or 'increment' (e.g. "+10% today")
         minutes: 0,
         percentage: currentPercent,
-        incrementPercentage: 10
+        incrementPercentage: 10,
+        incrementSign: 1, // 1 for add, -1 for reduce
+        minuteSign: 1, // 1 for add, -1 for reduce
+        directMinutes: 0
       };
     });
     return state;
@@ -30,15 +33,24 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
       const current = prev[goalId];
       const g = goals.find(goal => goal.id === goalId);
       const stats = paceStats[goalId] || {};
-      const totalLogged = stats.totalMinutesLogged || 0;
+      const totalLogged = Math.max(0, stats.totalMinutesLogged || 0);
       const planned = g?.totalPlannedMinutes || 1200;
-      const currentPercent = Math.min(100, Math.round((totalLogged / planned) * 100));
+      const currentPercent = Math.min(100, Math.max(0, Math.round((totalLogged / planned) * 100)));
 
       let newMinutes = current.minutes;
+      const targetPercent = current.percentage !== undefined && current.percentage !== ''
+        ? Number(current.percentage)
+        : currentPercent;
+
       if (newMode === 'percentage') {
-        const targetPercent = Math.max(currentPercent, current.percentage || currentPercent);
-        const targetMins = Math.round((targetPercent / 100) * planned);
-        newMinutes = Math.max(0, targetMins - totalLogged);
+        if (current.percentMode === 'overall') {
+          const targetMins = Math.round((targetPercent / 100) * planned);
+          newMinutes = targetMins - totalLogged;
+        } else {
+          newMinutes = current.incrementSign * Math.round(((current.incrementPercentage || 10) / 100) * planned);
+        }
+      } else {
+        newMinutes = current.minuteSign * (current.directMinutes || 0);
       }
 
       return {
@@ -46,7 +58,7 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
         [goalId]: {
           ...current,
           mode: newMode,
-          percentage: current.percentage || currentPercent,
+          percentage: targetPercent,
           minutes: newMinutes
         }
       };
@@ -54,20 +66,32 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
   };
 
   const handlePercentageChange = (goalId, val) => {
+    if (val === '') {
+      setEntriesState(prev => ({
+        ...prev,
+        [goalId]: {
+          ...prev[goalId],
+          percentage: '',
+          minutes: 0
+        }
+      }));
+      return;
+    }
+
     const percentVal = Math.max(0, Math.min(100, Number(val) || 0));
     setEntriesState(prev => {
       const current = prev[goalId];
       const g = goals.find(goal => goal.id === goalId);
       const stats = paceStats[goalId] || {};
-      const totalLogged = stats.totalMinutesLogged || 0;
+      const totalLogged = Math.max(0, stats.totalMinutesLogged || 0);
       const planned = g?.totalPlannedMinutes || 1200;
 
       let calcMinutes = 0;
       if (current.percentMode === 'overall') {
         const targetMins = Math.round((percentVal / 100) * planned);
-        calcMinutes = Math.max(0, targetMins - totalLogged);
+        calcMinutes = targetMins - totalLogged; // Allows negative when reducing!
       } else {
-        calcMinutes = Math.round((percentVal / 100) * planned);
+        calcMinutes = current.incrementSign * Math.round((percentVal / 100) * planned);
       }
 
       return {
@@ -86,17 +110,20 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
       const current = prev[goalId];
       const g = goals.find(goal => goal.id === goalId);
       const stats = paceStats[goalId] || {};
-      const totalLogged = stats.totalMinutesLogged || 0;
+      const totalLogged = Math.max(0, stats.totalMinutesLogged || 0);
       const planned = g?.totalPlannedMinutes || 1200;
-      const currentPercent = Math.min(100, Math.round((totalLogged / planned) * 100));
+      const currentPercent = Math.min(100, Math.max(0, Math.round((totalLogged / planned) * 100)));
 
       let calcMinutes = 0;
+      const targetPercent = current.percentage !== undefined && current.percentage !== ''
+        ? Number(current.percentage)
+        : currentPercent;
+
       if (mode === 'overall') {
-        const target = Math.max(currentPercent, current.percentage || 50);
-        const targetMins = Math.round((target / 100) * planned);
-        calcMinutes = Math.max(0, targetMins - totalLogged);
+        const targetMins = Math.round((targetPercent / 100) * planned);
+        calcMinutes = targetMins - totalLogged;
       } else {
-        calcMinutes = Math.round(((current.incrementPercentage || 10) / 100) * planned);
+        calcMinutes = current.incrementSign * Math.round(((current.incrementPercentage || 10) / 100) * planned);
       }
 
       return {
@@ -104,6 +131,26 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
         [goalId]: {
           ...current,
           percentMode: mode,
+          percentage: targetPercent,
+          minutes: calcMinutes
+        }
+      };
+    });
+  };
+
+  const handleIncrementSignChange = (goalId, sign) => {
+    setEntriesState(prev => {
+      const current = prev[goalId];
+      const g = goals.find(goal => goal.id === goalId);
+      const planned = g?.totalPlannedMinutes || 1200;
+      const incVal = current.incrementPercentage || 10;
+      const calcMinutes = sign * Math.round((incVal / 100) * planned);
+
+      return {
+        ...prev,
+        [goalId]: {
+          ...current,
+          incrementSign: sign,
           minutes: calcMinutes
         }
       };
@@ -116,7 +163,7 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
       const current = prev[goalId];
       const g = goals.find(goal => goal.id === goalId);
       const planned = g?.totalPlannedMinutes || 1200;
-      const calcMinutes = Math.round((incVal / 100) * planned);
+      const calcMinutes = current.incrementSign * Math.round((incVal / 100) * planned);
 
       return {
         ...prev,
@@ -129,28 +176,49 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
     });
   };
 
+  const handleMinuteSignChange = (goalId, sign) => {
+    setEntriesState(prev => {
+      const current = prev[goalId];
+      const mins = current.directMinutes || 0;
+      return {
+        ...prev,
+        [goalId]: {
+          ...current,
+          minuteSign: sign,
+          minutes: sign * mins
+        }
+      };
+    });
+  };
+
   const handleDirectMinutesChange = (goalId, val) => {
     const num = Math.max(0, Number(val) || 0);
-    setEntriesState(prev => ({
-      ...prev,
-      [goalId]: {
-        ...prev[goalId],
-        minutes: num
-      }
-    }));
+    setEntriesState(prev => {
+      const current = prev[goalId];
+      return {
+        ...prev,
+        [goalId]: {
+          ...current,
+          directMinutes: num,
+          minutes: current.minuteSign * num
+        }
+      };
+    });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Allow any non-zero change: both increases (+mins) and reductions (-mins)
     const validEntries = Object.values(entriesState)
-      .filter(item => item.minutes > 0)
+      .filter(item => item.minutes !== 0)
       .map(item => ({
         goalId: item.goalId,
-        minutes: item.minutes
+        minutes: item.minutes,
+        note: note.trim() || (item.minutes < 0 ? `Reduced progress to ${item.percentage}%` : '')
       }));
 
     if (validEntries.length === 0) {
-      alert("Please log progress (minutes or percentage > 0) for at least one goal.");
+      alert("Please adjust progress (change percentage or enter minutes) for at least one goal.");
       return;
     }
     onSubmit({ entries: validEntries, note, date: todayStr });
@@ -179,11 +247,11 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           {goals.map(g => {
-            const entry = entriesState[g.id] || { mode: 'minutes', minutes: 0, percentage: 0 };
+            const entry = entriesState[g.id] || { mode: 'percentage', minutes: 0, percentage: 0 };
             const stats = paceStats[g.id] || {};
-            const totalLogged = stats.totalMinutesLogged || 0;
+            const totalLogged = Math.max(0, stats.totalMinutesLogged || 0);
             const planned = g.totalPlannedMinutes || 1200;
-            const currentPercent = Math.min(100, Math.round((totalLogged / planned) * 100));
+            const currentPercent = Math.min(100, Math.max(0, Math.round((totalLogged / planned) * 100)));
             const title = g.title || g.name;
 
             return (
@@ -196,19 +264,8 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                     </div>
                   </div>
 
-                  {/* Mode Selector Toggle: Minutes vs Percentage */}
+                  {/* Mode Selector Toggle: Percentage vs Minutes */}
                   <div className="flex items-center bg-white/60 p-0.5 rounded-xl border border-white self-start sm:self-auto">
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange(g.id, 'minutes')}
-                      className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
-                        entry.mode === 'minutes'
-                          ? 'bg-[#7166dc] text-white shadow-sm'
-                          : 'text-[#969caf] hover:text-[#4c5166]'
-                      }`}
-                    >
-                      Rate in Mins
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleModeChange(g.id, 'percentage')}
@@ -220,28 +277,81 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                     >
                       Rate in % (Slider)
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange(g.id, 'minutes')}
+                      className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                        entry.mode === 'minutes'
+                          ? 'bg-[#7166dc] text-white shadow-sm'
+                          : 'text-[#969caf] hover:text-[#4c5166]'
+                      }`}
+                    >
+                      Rate in Mins
+                    </button>
                   </div>
                 </div>
 
                 {/* Body according to chosen mode */}
                 {entry.mode === 'minutes' ? (
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs text-[#969caf]">Enter minutes spent today:</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        step="5"
-                        value={entry.minutes}
-                        onChange={(e) => handleDirectMinutesChange(g.id, e.target.value)}
-                        className="w-24 px-3 py-1.5 font-bold bg-white/70 border border-white rounded-lg focus:outline-none focus:border-[#7166dc] text-[#25283b] text-right"
-                      />
-                      <span className="text-xs text-[#969caf] font-bold uppercase">min</span>
+                  <div className="space-y-3 pt-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-[#969caf]">Action:</span>
+                        <div className="flex bg-white/50 p-0.5 rounded-lg border border-white">
+                          <button
+                            type="button"
+                            onClick={() => handleMinuteSignChange(g.id, 1)}
+                            className={`px-2 py-0.5 text-xs font-bold rounded ${
+                              entry.minuteSign === 1
+                                ? 'bg-emerald-500 text-white'
+                                : 'text-[#969caf]'
+                            }`}
+                          >
+                            + Add
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMinuteSignChange(g.id, -1)}
+                            className={`px-2 py-0.5 text-xs font-bold rounded ${
+                              entry.minuteSign === -1
+                                ? 'bg-rose-500 text-white'
+                                : 'text-[#969caf]'
+                            }`}
+                          >
+                            - Reduce
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="5"
+                          value={entry.directMinutes}
+                          onChange={(e) => handleDirectMinutesChange(g.id, e.target.value)}
+                          className="w-24 px-3 py-1.5 font-bold bg-white/70 border border-white rounded-lg focus:outline-none focus:border-[#7166dc] text-[#25283b] text-right"
+                        />
+                        <span className="text-xs text-[#969caf] font-bold uppercase">min</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-xl bg-white/60 text-xs flex justify-between items-center text-[#4c5166]">
+                      <span>{entry.minuteSign === 1 ? 'Adding to goal' : 'Reducing from goal'}</span>
+                      <span className="font-bold">
+                        {entry.minutes > 0 ? (
+                          <span className="text-emerald-600">Will commit +{entry.minutes} min</span>
+                        ) : entry.minutes < 0 ? (
+                          <span className="text-rose-500">Will reduce by {Math.abs(entry.minutes)} min</span>
+                        ) : (
+                          <span className="text-[#969caf]">0 min</span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-3 pt-1 border-t border-white/50">
-                    {/* Sub-mode option: Overall Goal Completion vs Added Percentage */}
+                    {/* Sub-mode option: Overall Goal Completion vs Added/Reduced Percentage */}
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-[#969caf] font-medium">How would you like to rate progress?</span>
                       <div className="flex gap-2">
@@ -265,7 +375,7 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                               : 'bg-white/40 text-[#969caf] border-transparent'
                           }`}
                         >
-                          + Add % Today
+                          +/- Relative %
                         </button>
                       </div>
                     </div>
@@ -274,7 +384,7 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-xs font-medium text-[#4c5166]">
-                            I am now at this completion %:
+                            Target completion percentage:
                           </label>
                           <div className="flex items-center gap-1.5">
                             <input
@@ -297,7 +407,7 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                             min="0"
                             max="100"
                             step="1"
-                            value={entry.percentage}
+                            value={entry.percentage !== '' ? entry.percentage : currentPercent}
                             onChange={(e) => handlePercentageChange(g.id, e.target.value)}
                             className="flex-1 h-2 bg-white/80 rounded-lg appearance-none cursor-pointer accent-[#7166dc]"
                           />
@@ -305,26 +415,60 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                         </div>
 
                         {/* Progress Calculation Feedback */}
-                        <div className="mt-2.5 p-2 rounded-xl bg-white/60 text-xs flex justify-between items-center text-[#4c5166]">
+                        <div className="mt-2.5 p-2.5 rounded-xl bg-white/60 text-xs flex justify-between items-center text-[#4c5166]">
                           <span>
                             Progress: <strong>{currentPercent}%</strong> &rarr; <strong className="text-[#7166dc]">{entry.percentage}%</strong>
                           </span>
                           <span className="font-bold">
                             {entry.minutes > 0 ? (
-                              <span className="text-emerald-600">Will commit +{entry.minutes} min</span>
-                            ) : entry.percentage <= currentPercent ? (
-                              <span className="text-amber-600">(Already at or above this %)</span>
+                              <span className="text-emerald-600">
+                                Will commit +{entry.minutes} min (+{Number(entry.percentage) - currentPercent}%)
+                              </span>
+                            ) : entry.minutes < 0 ? (
+                              <span className="text-rose-500">
+                                Will reduce by {Math.abs(entry.minutes)} min (-{currentPercent - Number(entry.percentage)}%)
+                              </span>
                             ) : (
-                              <span>0 min</span>
+                              <span className="text-[#969caf]">No change ({currentPercent}%)</span>
                             )}
                           </span>
                         </div>
                       </div>
                     ) : (
-                      <div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium text-[#4c5166]">
+                            Action:
+                          </label>
+                          <div className="flex bg-white/50 p-0.5 rounded-lg border border-white">
+                            <button
+                              type="button"
+                              onClick={() => handleIncrementSignChange(g.id, 1)}
+                              className={`px-2 py-0.5 text-xs font-bold rounded ${
+                                entry.incrementSign === 1
+                                  ? 'bg-emerald-500 text-white'
+                                  : 'text-[#969caf]'
+                              }`}
+                            >
+                              + Add %
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleIncrementSignChange(g.id, -1)}
+                              className={`px-2 py-0.5 text-xs font-bold rounded ${
+                                entry.incrementSign === -1
+                                  ? 'bg-rose-500 text-white'
+                                  : 'text-[#969caf]'
+                              }`}
+                            >
+                              - Reduce %
+                            </button>
+                          </div>
+                        </div>
+
                         <div className="flex items-center justify-between mb-2">
                           <label className="text-xs font-medium text-[#4c5166]">
-                            Percentage of goal achieved today:
+                            {entry.incrementSign === 1 ? 'Add percentage:' : 'Reduce percentage:'}
                           </label>
                           <div className="flex items-center gap-1.5">
                             <input
@@ -355,9 +499,15 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
                         </div>
 
                         <div className="mt-2.5 p-2 rounded-xl bg-white/60 text-xs flex justify-between items-center text-[#4c5166]">
-                          <span>+{entry.incrementPercentage}% of total goal ({planned}m)</span>
-                          <span className="font-bold text-emerald-600">
-                            Will commit +{entry.minutes} min
+                          <span>
+                            {entry.incrementSign === 1 ? '+' : '-'}{entry.incrementPercentage}% of goal ({planned}m)
+                          </span>
+                          <span className="font-bold">
+                            {entry.minutes > 0 ? (
+                              <span className="text-emerald-600">Will commit +{entry.minutes} min</span>
+                            ) : (
+                              <span className="text-rose-500">Will reduce by {Math.abs(entry.minutes)} min</span>
+                            )}
                           </span>
                         </div>
                       </div>
@@ -378,7 +528,7 @@ export default function DailyLogForm({ goals = [], paceStats = {}, onSubmit, onC
             onChange={(e) => setNote(e.target.value)}
             className="w-full bg-white/40 border border-white/60 rounded-xl px-4 py-3 text-sm text-[#25283b] focus:outline-none focus:border-[#7166dc] placeholder:text-[#969caf]/70"
             rows={2}
-            placeholder="What did you accomplish today? Any blockers or wins?"
+            placeholder="Note down what changed, wins, or adjustments..."
           />
         </div>
 

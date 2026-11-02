@@ -188,17 +188,29 @@ app.get('/api/logs', async (req, res) => {
 
 // POST /api/logs
 app.post('/api/logs', async (req, res) => {
-  const { entries, note, date } = req.body; // entries is array of { id, goalId, minutes }
+  const { entries, note, date } = req.body; // entries is array of { id, goalId, minutes, note? }
   try {
     const results = [];
     for (const entry of entries) {
+      const entryNote = entry.note !== undefined ? entry.note : note;
       const result = await pool.query(
         'INSERT INTO logs (id, goalid, date, minuteslogged, note) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [entry.id, entry.goalId, date, entry.minutes, note]
+        [entry.id, entry.goalId, date, entry.minutes, entryNote]
       );
       results.push(mapLog(result.rows[0]));
     }
     res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/logs/:id
+app.delete('/api/logs/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query('DELETE FROM logs WHERE id = $1', [id]);
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
